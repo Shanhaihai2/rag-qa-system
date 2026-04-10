@@ -126,3 +126,9 @@ def fetch_and_save_github_user(username, save_path=None):
 
     # 复用我们第2天写的 save_json 函数
     return save_json(extracted, save_path)
+
+def greet(name):
+    """
+    一个简单的打招呼函数（假装是新功能）
+    """
+    return f"你好，{name}！欢迎使用我的系统。"
