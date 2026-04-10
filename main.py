@@ -39,6 +39,7 @@ print(pdf.content)
 print(pdf.summary(3))
 print(pdf.info()) 
 """     
+
 # 测试获取 octocat（GitHub 官方示例账号）
 success = fetch_and_save_github_user("shanhaihai2")
 
