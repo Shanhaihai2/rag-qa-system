@@ -62,3 +62,67 @@ def fetch_url(url):
     except Exception as e:
         print(f"未知错误：{e}")
         return None
+    
+def get_github_user(username):
+    """
+    获取指定GitHub用户的公开信息
+    参数：
+        username：GitHub 用户名（字符串）
+    返回：
+        成功返回解析后的字典，失败返回None
+    """
+    url = f"https://api.github.com/users/{username}"
+
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 404:
+            print(f"用户 {username} 不存在")
+            return None
+        elif response.status_code == 403:
+            print("API 访问频率受限，请稍后再试")
+            return None
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.Timeout:
+        print(f"请求超时：GitHub API 响应太慢")
+        return None
+    except requests.exceptions.ConnectionError:
+        print(f"网络连接错误，请检查网络")
+        return None
+    except requests.exceptions.HTTPError as e:
+        print(f"HTTP 错误：{e}")
+        return None
+    except Exception as e:
+        print(f"未知错误：{e}")
+        return None
+    
+def fetch_and_save_github_user(username, save_path=None):
+    """
+    获取 GitHub 用户信息，提取关键字段，保存为 JSON 文件
+    参数:
+        username: GitHub 用户名
+        save_path: 保存路径，默认为 {username}.json
+    返回:
+        成功返回 True，失败返回 False
+    """
+    if save_path is None:
+        save_path = f"{username}.json"
+    
+    user_data = get_github_user(username)
+    if user_data is None:
+        return False
+    
+    # 提取我们关心的字段
+    extracted = {
+        "username": user_data.get("login"),
+        "name": user_data.get("name"),
+        "bio": user_data.get("bio"),
+        "public_repos": user_data.get("public_repos"),
+        "followers": user_data.get("followers"),
+        "following": user_data.get("following"),
+        "avatar_url": user_data.get("avatar_url"),
+        "html_url": user_data.get("html_url")
+    }
+
+    # 复用我们第2天写的 save_json 函数
+    return save_json(extracted, save_path)
