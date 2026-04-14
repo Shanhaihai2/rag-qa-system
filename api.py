@@ -1,10 +1,66 @@
-from fastapi import FastAPI,Depends
+from fastapi import FastAPI,Depends,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import logging
+
+# 配置日志格式和级别
+logging.basicConfig(
+    level=logging.INFO,  # 设置最低输出级别，DEBUG < INFO < WARNING < ERROR
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger(__name__)  # 获取当前模块的日志记录器
 
 # 创建一个 FastAPI 应用实例
 app = FastAPI(title="智能问数与知识库平台API", version="0.1.0")
+
+# 自定义处理器：捕获 ValueError
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=400,
+        content={"message": f"参数值无效：{str(exc)}"}
+    )
+
+# 自定义处理器：覆盖默认的 500 错误
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # 可以在这里记录日志
+    print(f"全局异常捕获：{type(exc).__name__}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"message": "服务器内部错误，请稍后重试"}
+    )
+
+#会抛出ValueError的接口
+@app.get("/test-error")
+def test_error(value: int):
+    if value < 0:
+        raise ValueError("value 不能为负数")
+    return {"value": value}
+
+# 假设有一个模拟的文档数据库
+fake_documents_db = {
+    1: {"id": 1, "title": "Python入门"},
+    2: {"id": 2, "title": "FastAPI实战"}
+}
+
+@app.get("/documents/{doc_id}")
+def get_document(doc_id: int):
+    """
+    根据 ID 获取文档，如果不存在则返回 404
+    """
+    logger.debug(f"查询文档 ID: {doc_id}")  # DEBUG 级别，默认不显示（level=INFO）
+    if doc_id not in fake_documents_db:
+        logger.warning(f"文档 {doc_id} 不存在，返回 404")
+        raise HTTPException(
+            status_code=404,
+            detail=f"文档 ID {doc_id} 不存在"
+        )
+    return fake_documents_db[doc_id]
 
 # 配置 CORS 跨域
 app.add_middleware(
@@ -51,6 +107,7 @@ class DBSession:
             raise Exception("会话已关闭")
         return f"执行查询：{sql}，返回模拟结果"
 
+
 def get_db():
     """
     依赖函数：创建并提供一个数据库会话，结束后自动关闭
@@ -73,9 +130,9 @@ def get_current_time():
 def read_root():
     return {"message": "Hello, FastAPI!我的第一个接口跑起来了。"}
 
-@app.get("/documents/{doc_id}")
-def get_document(doc_id: int):
-    return {"doc_id": doc_id, "title": f"文档 {doc_id}"}
+# @app.get("/documents/{doc_id}")
+# def get_document(doc_id: int):
+#     return {"doc_id": doc_id, "title": f"文档 {doc_id}"}
 
 @app.get("/documents")
 def list_documents(skip: int = 0, limit: int = 10):
@@ -88,6 +145,7 @@ def get_server_status(current_time: str = Depends(get_current_time)):
     """
     获取服务器状态（演示依赖注入）
     """
+    logger.info(f"有人访问了 /status 接口")  # INFO 级别
     return {
         "status": "running",
         "server_time": current_time
