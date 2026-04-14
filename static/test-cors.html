@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>跨域测试</title>
+</head>
+<body>
+    <h1>CORS 测试页面</h1>
+    <button onclick="testAPI()">调用 FastAPI 接口</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testAPI() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = '请求中...';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/status');
+                const data = await response.json();
+                resultEl.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent = '请求失败：' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

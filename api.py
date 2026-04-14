@@ -1,9 +1,19 @@
 from fastapi import FastAPI,Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from datetime import datetime
 
 # 创建一个 FastAPI 应用实例
 app = FastAPI(title="智能问数与知识库平台API", version="0.1.0")
+
+# 配置 CORS 跨域
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许的前端地址
+    allow_credentials=True,       # 允许携带 Cookie
+    allow_methods=["*"],          # 允许所有 HTTP 方法（GET, POST, OPTIONS 等）
+    allow_headers=["*"],          # 允许所有请求头
+)
 
 # 定义一个 Pydantic 模型，描述问答请求的数据结构
 class QuestionRequest(BaseModel):
