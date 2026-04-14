@@ -1,10 +1,27 @@
 from fastapi import FastAPI,Depends,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import Optional,List
 from datetime import datetime
 from fastapi import Request
 from fastapi.responses import JSONResponse
 import logging
+
+# 文档模型（响应时返回）
+class DocumentResponse(BaseModel):
+    id: int
+    title: str
+    content: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+# 上传文档时的请求体模型
+class DocumentCreate(BaseModel):
+    title: str = Field(..., description="文档标题", min_length=1, max_length=200)
+    content: str = Field(..., description="文档正文内容")
+
+fake_documents_db: List[DocumentResponse] = []
+doc_id_counter = 1
 
 # 配置日志格式和级别
 logging.basicConfig(
@@ -42,25 +59,11 @@ def test_error(value: int):
         raise ValueError("value 不能为负数")
     return {"value": value}
 
-# 假设有一个模拟的文档数据库
-fake_documents_db = {
-    1: {"id": 1, "title": "Python入门"},
-    2: {"id": 2, "title": "FastAPI实战"}
-}
-
-@app.get("/documents/{doc_id}")
-def get_document(doc_id: int):
-    """
-    根据 ID 获取文档，如果不存在则返回 404
-    """
-    logger.debug(f"查询文档 ID: {doc_id}")  # DEBUG 级别，默认不显示（level=INFO）
-    if doc_id not in fake_documents_db:
-        logger.warning(f"文档 {doc_id} 不存在，返回 404")
-        raise HTTPException(
-            status_code=404,
-            detail=f"文档 ID {doc_id} 不存在"
-        )
-    return fake_documents_db[doc_id]
+# # 假设有一个模拟的文档数据库
+# fake_documents_db = {
+#     1: {"id": 1, "title": "Python入门"},
+#     2: {"id": 2, "title": "FastAPI实战"}
+# }
 
 # 配置 CORS 跨域
 app.add_middleware(
@@ -73,7 +76,7 @@ app.add_middleware(
 
 # 定义一个 Pydantic 模型，描述问答请求的数据结构
 class QuestionRequest(BaseModel):
-    question: str = Field(..., description="用户输入的自然语言问题", min_length=1)# 必填，字符串类型
+    question: str = Field(..., description="用户问题", min_length=1)# 必填，字符串类型
     max_tokens: int = Field(500, description="生成回答的最大 token 数", ge=1, le=2000)# 可选，默认 500
     temperature: float = Field(0.7, description="采样温度，控制随机性", ge=0.0, le=2.0)# 可选，默认 0.7
 """
@@ -134,11 +137,14 @@ def read_root():
 # def get_document(doc_id: int):
 #     return {"doc_id": doc_id, "title": f"文档 {doc_id}"}
 
-@app.get("/documents")
-def list_documents(skip: int = 0, limit: int = 10):
-    # 模拟分页逻辑
-    all_docs = [{"id": i, "title": f"文档{i}"} for i in range(1, 101)]
-    return all_docs[skip : skip + limit]
+@app.get("/documents", response_model=List[DocumentResponse])
+def list_documents(skip: int = 0, limit: int = 10, db: DBSession = Depends(get_db)):
+    """
+    获取文档列表（分页）
+    """
+    logger.info(f"查询文档列表，skip={skip}, limit={limit}")
+    db.query(f"SELECT * FROM documents LIMIT {limit} OFFSET {skip}")
+    return fake_documents_db[skip : skip + limit]
 
 @app.get("/status")
 def get_server_status(current_time: str = Depends(get_current_time)):
@@ -160,17 +166,22 @@ def list_documents_from_db(db: DBSession = Depends(get_db)):
     return {"db_connected": db.connected, "result": result}
 
 @app.post("/qa")
-def ask_question(request: QuestionRequest):
+def ask_question(request: QuestionRequest, db: DBSession = Depends(get_db)):
     """
-    问答接口（目前返回模拟答案，后续接 Text2SQL 或 RAG）
-    接收一个 JSON 请求体，符合 QuestionRequest 模型的结构
+    知识库问答接口（当前为模拟实现）
     """
-    # 模拟处理逻辑
-    answer = f"您的问题是：{request.question}。这是一个模拟回答，后续将接入真实 AI 模型。"
+    logger.info(f"收到问答请求：{request.question[:50]}...")
+    
+    # 模拟检索相关文档（后续替换为 RAG 检索）
+    related_docs = [doc.title for doc in fake_documents_db[:2]]
+    
+    # 模拟生成答案
+    answer = f"关于「{request.question}」，知识库中有以下相关文档：{', '.join(related_docs) if related_docs else '暂无'}。这是一个模拟回答，后续将接入大模型。"
     
     return {
         "question": request.question,
         "answer": answer,
+        "related_documents": related_docs,
         "max_tokens": request.max_tokens,
         "temperature": request.temperature
     }
@@ -181,3 +192,39 @@ def text_to_sql(request: Text2SQLRequest):
     # 可以通过 request.db_config.host 访问嵌套数据
     return {"sql": f"SELECT * FROM table WHERE question='{request.question}'"}
 """
+
+@app.post("/documents", response_model=DocumentResponse, status_code=201)
+def create_document(doc_in: DocumentCreate, db: DBSession = Depends(get_db)):
+    """
+    上传新文档
+    """
+    global doc_id_counter
+    logger.info(f"正在创建新文档，标题：{doc_in.title}")
+    
+    new_doc = DocumentResponse(
+        id=doc_id_counter,
+        title=doc_in.title,
+        content=doc_in.content,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    doc_id_counter += 1
+    fake_documents_db.append(new_doc)
+    
+    # 模拟数据库插入日志
+    db.query(f"INSERT INTO documents (title, content) VALUES ('{doc_in.title}', ...)")
+    
+    return new_doc
+
+@app.get("/documents/{doc_id}", response_model=DocumentResponse)
+def get_document(doc_id: int, db: DBSession = Depends(get_db)):
+    """
+    根据 ID 获取文档
+    """
+    logger.debug(f"查询文档 ID: {doc_id}")  # DEBUG 级别，默认不显示（level=INFO）
+    db.query(f"SELECT * FROM documents WHERE id = {doc_id}")
+    for doc in fake_documents_db:
+        if doc.id == doc_id:
+            return doc
+    logger.warning(f"文档 {doc_id} 不存在")
+    raise HTTPException(status_code=404, detail=f"文档 ID {doc_id} 不存在")
