@@ -1,5 +1,22 @@
 from langchain_community.document_loaders import PyPDFLoader, PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+import numpy as np
+
+# 直接指定本地模型路径（使用绝对路径或相对路径）
+model_path = "./models/bge-small-zh-v1.5"
+
+#使用本地免费的中文Embedding模型
+model_kwargs = {'device':'cpu'}#如果没有GPU，就用CPU
+encode_kwargs = {'normalize_embeddings':True}#归一化向量，便于计算相似度
+
+embeddings = HuggingFaceEmbeddings(
+    model_name = model_path,
+    model_kwargs = model_kwargs,
+    encode_kwargs = encode_kwargs
+)
+
+print("√离线Embedding模型加载成功！")
 
 #指定PDF文件路径
 pdf_path = "data/yuanshen.pdf"
@@ -49,3 +66,37 @@ for i, chunk in enumerate(chunks[:2]):
     print(f"【块{i+1}】长度：{len(chunk.page_content)}字符")
     print(f"内容预览:{chunk.page_content[:50]}……")
     print("-" * 30)
+
+# 假设 chunks 是第 17 天生成的分块列表
+# 为前 3 个块生成向量（如果块数不足 3，则取全部）
+sample_chunks = chunks[:3]
+sample_texts = [chunk.page_content for chunk in sample_chunks]
+
+# 生成向量
+vectors = embeddings.embed_documents(sample_texts)
+
+print(f"\n✅ 已为 {len(vectors)} 个文本块生成向量。")
+print(f"每个向量的维度：{len(vectors[0])}")  # BGE-small 是 512 维
+print(f"第一个向量的前 5 个值：{vectors[0][:5]}")
+
+def cosine_similarity(vec1, vec2):
+    """计算两个向量的余弦相似度"""
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+    return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+
+#测试三组句子
+sentences = [
+    "苹果是一种很好吃的水果",
+    "香蕉的味道也不错",
+    "今天天气下雨不适合出去玩"
+]
+
+#生成向量
+vecs = embeddings.embed_documents(sentences)
+
+print("\n" + "="*50)
+print("语义相似度测试：")
+print(f"「苹果」与「香蕉」的相似度：{cosine_similarity(vecs[0], vecs[1]):.4f}")
+print(f"「苹果」与「天气」的相似度：{cosine_similarity(vecs[0], vecs[2]):.4f}")
+print(f"「香蕉」与「天气」的相似度：{cosine_similarity(vecs[1], vecs[2]):.4f}")
