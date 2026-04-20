@@ -1,0 +1,8 @@
+# 忽略 data 文件夹下的所有文件
+data/
+
+# 其他常见的 Python 项目忽略项
+__pycache__/
+*.pyc
+.venv/
+.vscode/
