@@ -26,6 +26,9 @@ uvicorn api:app --reload
 ### 4. 访问 API 文档
 打开浏览器访问 http://127.0.0.1:8000/docs
 
+### 5.下载 Embedding 模型
+从 https://hf-mirror.com/BAAI/bge-small-zh-v1.5 下载所有文件，放置于 `models/bge-small-zh-v1.5/` 目录下。
+
 ## 主要接口
 - `POST /documents` - 上传文档
 - `GET /documents` - 文档列表（分页）
