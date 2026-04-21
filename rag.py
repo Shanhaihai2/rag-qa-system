@@ -190,3 +190,6 @@ print("正在生成回答，请稍候...")
 answer = rag_chain.invoke(test_question)
 
 print(f"\n回答：\n{answer}")
+
+# 在文件末尾（if __name__ == "__main__": 之前）确保 rag_chain 已定义
+# 如果测试代码放在 if __name__ == "__main__": 里，rag_chain 需在外面定义

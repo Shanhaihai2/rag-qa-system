@@ -7,6 +7,8 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 import logging
 
+from rag import rag_chain # 确保 rag.py 在项目根目录
+
 # 文档模型（响应时返回）
 class DocumentResponse(BaseModel):
     id: int
@@ -228,3 +230,15 @@ def get_document(doc_id: int, db: DBSession = Depends(get_db)):
             return doc
     logger.warning(f"文档 {doc_id} 不存在")
     raise HTTPException(status_code=404, detail=f"文档 ID {doc_id} 不存在")
+
+@app.post("/rag/qa")
+async def rag_qa(request: QuestionRequest):
+    """
+    RAG 知识库问答接口
+    """
+    try:
+        answer = rag_chain.invoke(request.question)
+        return {"question": request.question, "answer": answer}
+    except Exception as e:
+        logger.error(f"RAG 问答失败：{e}")
+        raise HTTPException(status_code=500, detail=str(e))

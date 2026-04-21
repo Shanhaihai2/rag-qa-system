@@ -47,6 +47,6 @@ uvicorn api:app --reload
 - [x] FastAPI 基础接口
 - [x] CORS 跨域配置
 - [x] 异常处理与日志
-- [ ] 接入 LangChain RAG
+- [x] 接入 LangChain RAG
 - [ ] 接入 Text2SQL
 - [ ] Vue 3 前端界面
