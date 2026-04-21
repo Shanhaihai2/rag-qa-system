@@ -1,6 +1,7 @@
 from langchain_community.document_loaders import PyPDFLoader, PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 import numpy as np
 
 # 直接指定本地模型路径（使用绝对路径或相对路径）
@@ -17,6 +18,8 @@ embeddings = HuggingFaceEmbeddings(
 )
 
 print("√离线Embedding模型加载成功！")
+
+
 
 #指定PDF文件路径
 pdf_path = "data/yuanshen.pdf"
@@ -100,3 +103,42 @@ print("语义相似度测试：")
 print(f"「苹果」与「香蕉」的相似度：{cosine_similarity(vecs[0], vecs[1]):.4f}")
 print(f"「苹果」与「天气」的相似度：{cosine_similarity(vecs[0], vecs[2]):.4f}")
 print(f"「香蕉」与「天气」的相似度：{cosine_similarity(vecs[1], vecs[2]):.4f}")
+
+
+# 指定持久化目录（向量数据将保存在这里）
+persist_directory = "./chroma_db"
+
+# 创建向量库
+# 如果目录已存在，会自动加载；否则新建并向量化所有 chunks
+vectordb = Chroma.from_documents(
+    documents=chunks,               # 第17天生成的文本块列表
+    embedding=embeddings,           # 第18天初始化好的 Embedding 模型
+    persist_directory=persist_directory
+)
+# 查看库中的向量数量
+# 注意：Chroma 新版本中 _collection 属性可能被标记为私有，可用 len(vectordb.get()['ids']) 替代
+try:
+    count = vectordb._collection.count()
+except AttributeError:
+    count = len(vectordb.get()['ids'])
+print(f"✅ 向量库已创建/加载，共包含 {count} 个向量。")
+
+def retrieve_relevant_chunks(query: str, k: int = 3):
+    """
+    根据用户问题，从向量库中检索最相关的 k 个文本块
+    """
+    docs = vectordb.similarity_search(query, k=k)
+    return docs
+
+#测试检索
+test_query = "七神分别是什么？" #请根据你的PDF内容提问
+results = retrieve_relevant_chunks(test_query, k=2)
+
+print("\n" + "=" * 50)
+print(f"测试问题：{test_query}")
+print(f"检索到{len(results)}个相关块:")
+for i, doc in enumerate(results):
+    source = doc.metadata.get('source', 'unknown')
+    page = doc.metadata.get('page', '?')
+    print(f"\n【块{i+1}】来源：{source}，页码：{page}")
+    print(f"内容预览：{doc.page_content[:200]}...")
