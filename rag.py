@@ -2,6 +2,10 @@ from langchain_community.document_loaders import PyPDFLoader, PDFPlumberLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 import numpy as np
 
 # 直接指定本地模型路径（使用绝对路径或相对路径）
@@ -142,3 +146,47 @@ for i, doc in enumerate(results):
     page = doc.metadata.get('page', '?')
     print(f"\n【块{i+1}】来源：{source}，页码：{page}")
     print(f"内容预览：{doc.page_content[:200]}...")
+
+#初始化本地Ollama模型
+llm = ChatOllama(
+    model = "qwen2.5:1.5b",
+    temperature=0.7,
+    num_predict=512,
+)
+
+print("√Ollama模型加载成功！")
+
+# 提示模板
+template = """你是一个专业的知识库问答助手。请仅根据以下上下文信息回答问题。如果上下文没有提供足够信息，请如实告知“根据现有资料无法回答”。
+上下文：
+{context}
+
+问题：
+{question}
+
+回答："""
+
+prompt = ChatPromptTemplate.from_template(template)
+
+# 创建检索器
+retriever = vectordb.as_retriever(search_kwargs={"k": 3})
+
+# 构建 RAG 链
+rag_chain = (
+    {"context": retriever,"question":RunnablePassthrough()}
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+
+print("√ RAG链构建完成！")
+
+# 测试完整 RAG 问答
+test_question = "原神的核心主题是啥"  # 请替换成实际问题
+print("\n" + "=" * 50)
+print(f"用户问题：{test_question}")
+print("正在生成回答，请稍候...")
+
+answer = rag_chain.invoke(test_question)
+
+print(f"\n回答：\n{answer}")
