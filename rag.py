@@ -173,8 +173,8 @@ retriever = vectordb.as_retriever(search_kwargs={"k": 3})
 
 # 构建 RAG 链
 rag_chain = (
-    {"context": retriever,"question":RunnablePassthrough()}
-    | prompt
+    {"context": retriever,"question":RunnablePassthrough()}#RunnablePassthrough可以让输入进来的字符串原封不动传给字典question键
+    | prompt # |符号可以使|符号前的输出自动传到后的输入
     | llm
     | StrOutputParser()
 )
