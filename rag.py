@@ -191,5 +191,42 @@ answer = rag_chain.invoke(test_question)
 
 print(f"\n回答：\n{answer}")
 
+def rebuild_vectordb(chunk_size = 500, chunk_overlap = 50):
+    """重建向量库，返回新的 vectordb 和 chunks"""
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = chunk_size,
+        chunk_overlap = chunk_overlap,
+        separators = ["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""]
+    )
+    chunks = text_splitter.split_documents(documents)
+
+    #删除旧库
+    import shutil
+    shutil.rmtree("./chroma_db", ignore_errors=True)
+
+    vectordb = Chroma.from_documents(
+        documents = chunks,
+        embedding = embeddings,
+        persist_directory = "./chroma_db"
+    )
+    return vectordb, chunks
+
+test_questions = [
+    "七神分别是哪七个？",
+    "钟离是谁？",
+    "主角又是谁？"
+]
+
+def evaluate_rag(vectordb, questions):
+    retriever = vectordb.as_retriever(search_type="similarity_score_threshold",search_kwargs={"score_threshold": 0.5,"k":3})
+    for q in questions:
+        docs = retriever.invoke(q)
+        print(f"问题：{q}")
+        for i, doc in enumerate(docs):
+            print(f" 块{i+1}：{doc.page_content[:80]}...")
+
+rebuild_vectordb(300,5)
+evaluate_rag(vectordb, test_questions)
+
 # 在文件末尾（if __name__ == "__main__": 之前）确保 rag_chain 已定义
 # 如果测试代码放在 if __name__ == "__main__": 里，rag_chain 需在外面定义
