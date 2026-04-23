@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 import numpy as np
 
+CURRENT_MODEL = "qwen2.5:7b"  # 或 "qwen2.5:1.5b"
 # 直接指定本地模型路径（使用绝对路径或相对路径）
 model_path = "./models/bge-small-zh-v1.5"
 
@@ -149,7 +150,7 @@ for i, doc in enumerate(results):
 
 #初始化本地Ollama模型
 llm = ChatOllama(
-    model = "qwen2.5:1.5b",
+    model = CURRENT_MODEL,
     temperature=0.7,
     num_predict=512,
 )
@@ -227,6 +228,34 @@ def evaluate_rag(vectordb, questions):
 
 rebuild_vectordb(300,5)
 evaluate_rag(vectordb, test_questions)
+
+def test_model(model_name, question):
+    """用指定模型回答一个问题"""
+    llm = ChatOllama(model=model_name, temperature=0.7, num_predict=512)
+    # 临时构建一个链
+    prompt = ChatPromptTemplate.from_template("""请根据以下上下文回答问题。
+上下文：{context}
+问题：{question}
+回答：""")
+    
+    retriever = vectordb.as_retriever(search_kwargs={"k": 3})
+    
+    chain = (
+        {"context": retriever, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    
+    return chain.invoke(question)
+# 对比测试
+test_q = "原神里面目前最厉害的是谁？"
+print("===== 1.5B 回答 =====")
+print(test_model("qwen2.5:1.5b", test_q))
+
+print("\n===== 7B 回答 =====")
+print(test_model("qwen2.5:7b", test_q))
+
 
 # 在文件末尾（if __name__ == "__main__": 之前）确保 rag_chain 已定义
 # 如果测试代码放在 if __name__ == "__main__": 里，rag_chain 需在外面定义
