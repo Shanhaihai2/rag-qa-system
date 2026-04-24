@@ -1,0 +1,32 @@
+📄 PDF 文档
+  ↓ (PyPDFLoader / PDFPlumberLoader)
+📄 Document 对象列表（每页一个）
+  ↓ (RecursiveCharacterTextSplitter)
+🧩 文本块列表（chunk_size=500, overlap=50）
+  ↓ (HuggingFaceEmbeddings / BGE 模型)
+🔢 向量数组（每个 512 维）
+  ↓ (Chroma.from_documents)
+🗄️ 向量数据库（chroma_db/）
+  ↓ (similarity_search / as_retriever)
+📋 相关文本块（Top K）
+  +
+❓ 用户问题
+  ↓ (ChatPromptTemplate)
+📝 格式化提示词（含上下文 + 问题）
+  ↓ (ChatOllama / Qwen2.5)
+💬 AI 回答
+
+ RAG 的 5 个核心步骤：
+1. 文档加载	把 PDF 文件读成程序可处理的文本对象	PyPDFLoader(pdf_path).load()
+2. 文本分块	把长文档切成小段，保证每个块语义完整、大小适中	RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+3. 向量化	把文字转成数字向量，让计算机能“理解”语义	HuggingFaceEmbeddings(model_name="BAAI/bge-small-zh-v1.5")
+4. 向量存储与检索	把向量存起来，用户提问时快速找到最相关的文本块	Chroma.from_documents(...) + .as_retriever(k=3)
+5. 生成答案	把相关文本块和用户问题拼成提示词，发给 LLM 生成回答	ChatOllama + ChatPromptTemplate + StrOutputParser
+
+RAG 是什么？	检索增强生成，给 LLM 外挂知识库，用向量检索找到相关文档，再生成准确答案。
+为什么要分块？	模型上下文有限，而且小块利于精准检索。chunk_overlap 保证上下文连贯。
+为什么用向量？	用数学距离衡量语义相似度，比关键词匹配更智能。
+Chroma 的作用？	向量数据库，负责快速存储和检索相似向量。
+如何优化 RAG？	调整分块大小、检索 k 值、相似度阈值、MMR、提示词设计、更好的 Embedding 模型（如 BGE-M3）。
+你为什么选 Qwen2.5？	完全本地运行，免费无限制，中文能力强，1.5B 够轻量，7B 更精准。
+你的 RAG 有什么亮点？	全部本地化部署，无需 API Key；做了分块策略对比实验并记录在 README；用 LCEL 构建了可调试的链式处理管道。
