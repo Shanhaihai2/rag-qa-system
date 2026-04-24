@@ -68,3 +68,12 @@ uvicorn api:app --reload
 - [x] 接入 LangChain RAG
 - [ ] 接入 Text2SQL
 - [ ] Vue 3 前端界面
+
+## 故障排查 (Troubleshooting)
+
+| 现象 | 可能原因 | 解决方法 |
+| :--- | :--- | :--- |
+| `ConnectionError` / 无法连接 | Ollama服务未启动 | 启动Ollama桌面程序 |
+| `Can't load model` | 本地Embedding模型缺失 | 重新下载并放入`models/`目录 |
+| 检索返回空 | `score_threshold`过高或`chunk_size`过小 | 降低阈值或调整分块参数 |
+| 回答与上下文无关 | 提示词模板设计不佳或检索不精准 | 优化prompt，强调“仅根据上下文回答” |
