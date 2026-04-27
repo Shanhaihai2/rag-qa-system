@@ -104,3 +104,5 @@ test2 = app.invoke({"question": "产品表里有多少种产品？", "steps": []
 print(f"问题：{test2['question']}")
 print(f"意图：{test2['intent']}")
 print(f"回答：{test2['answer']}")
+
+

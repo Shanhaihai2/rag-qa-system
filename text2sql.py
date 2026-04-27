@@ -12,15 +12,15 @@ db = SQLDatabase.from_uri(f"sqlite:///{DB_PATH}")
 
 # 查看数据库中有哪些表
 print(f"✅ 数据库连接成功！")
-print(f"  表列表：{db.get_usable_table_names()}")
-print(f"  各表信息：")
-for table in db.get_usable_table_names():
-    print(f"    {table}: {db.get_table_info([table])[:200]}...")
+# print(f"  表列表：{db.get_usable_table_names()}")
+# print(f"  各表信息：")
+# for table in db.get_usable_table_names():
+#     print(f"    {table}: {db.get_table_info([table])[:200]}...")
 
-# 在 text2sql.py 中追加
-result = db.run("SELECT pr.product_name, SUM(o.quantity) AS total_sold FROM orders o JOIN products pr ON o.product_id = pr.product_id GROUP BY pr.product_name ORDER BY total_sold DESC")
-print("\n📊 产品销售统计：")
-print(result)
+# # 在 text2sql.py 中追加
+# result = db.run("SELECT pr.product_name, SUM(o.quantity) AS total_sold FROM orders o JOIN products pr ON o.product_id = pr.product_id GROUP BY pr.product_name ORDER BY total_sold DESC")
+# print("\n📊 产品销售统计：")
+# print(result)
 
 
 def get_sql_from_question(question, db, llm):
@@ -59,27 +59,27 @@ def extract_sql(text):
     return match.group(0) if match else text
 
 
-# 测试问题列表
-test_questions = [
-    "产品表里有多少种产品？",                          # 简单计数
-    "价格大于100元的产品有哪些？",                     # 带条件
-    "每个客户总共下了多少订单？",                     # 多表联查 + 聚合
-    "销量最高的产品是什么？卖了多少个？",              # 排序 + 限制
-    "2026年3月的订单总金额是多少？",                   # 日期过滤 + 求和
-]
+# # 测试问题列表
+# test_questions = [
+#     "产品表里有多少种产品？",                          # 简单计数
+#     "价格大于100元的产品有哪些？",                     # 带条件
+#     "每个客户总共下了多少订单？",                     # 多表联查 + 聚合
+#     "销量最高的产品是什么？卖了多少个？",              # 排序 + 限制
+#     "2026年3月的订单总金额是多少？",                   # 日期过滤 + 求和
+# ]
 
-for q in test_questions:
-    print(f"\n{'='*50}")
-    print(f"问题：{q}")
-    sql = extract_sql(get_sql_from_question(q, db, llm))
-    print(f"生成的 SQL：{sql}")
+# for q in test_questions:
+#     print(f"\n{'='*50}")
+#     print(f"问题：{q}")
+#     sql = extract_sql(get_sql_from_question(q, db, llm))
+#     print(f"生成的 SQL：{sql}")
     
-    # 执行 SQL 并打印结果
-    try:
-        result = db.run(sql)
-        print(f"执行结果：{result}")
-    except Exception as e:
-        print(f"执行出错：{e}")
+#     # 执行 SQL 并打印结果
+#     try:
+#         result = db.run(sql)
+#         print(f"执行结果：{result}")
+#     except Exception as e:
+#         print(f"执行出错：{e}")
 
 def generate_answer_from_result(question, sql, result, llm):
     """
