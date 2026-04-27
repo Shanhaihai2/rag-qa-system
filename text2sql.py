@@ -81,3 +81,61 @@ for q in test_questions:
     except Exception as e:
         print(f"执行出错：{e}")
 
+def generate_answer_from_result(question, sql, result, llm):
+    """
+    根据用户问题、生成的 SQL、执行结果，用 LLM 生成自然语言回答
+    """
+    # 如果结果为空或出错，给出友好提示
+    if result is None or result == "" or result == "[]":
+        return "很抱歉，没有查询到相关数据，请检查您的查询条件。"
+    
+    summary_prompt = f"""你是一个数据分析助手。请根据以下信息，用简洁、流畅的中文回答用户的问题。
+不要编造数据，只根据提供的查询结果作答。
+
+用户问题：{question}
+执行的 SQL：{sql}
+查询结果：{result}
+
+请用自然语言回答："""
+    
+    response = llm.invoke(summary_prompt)
+    return response.content.strip()
+
+def text2sql_qa(question, db, llm):
+    """
+    完整的 Text2SQL 问答流水线：
+    问题 → 生成 SQL → 执行 SQL → 生成自然语言回答
+    """
+    # 1. 生成 SQL
+    sql = get_sql_from_question(question, db, llm)
+    print(f"生成的 SQL：{sql}")
+    
+    # 2. 执行 SQL
+    try:
+        result = db.run(sql)
+        print(f"执行结果：{result}")
+    except Exception as e:
+        # 如果 SQL 执行失败，直接告诉用户并记录日志
+        print(f"SQL 执行失败：{e}")
+        return f"对不起，生成 SQL 时出错了。错误信息：{e}"
+    
+    if result == "" or result == "[]":
+        return "很抱歉，没有查询到符合条件的数据。"
+
+    # 3. 生成回答
+    answer = generate_answer_from_result(question, sql, result, llm)
+    return answer
+
+if __name__ == "__main__":
+    test_questions = [
+        "产品表里有多少种产品？",
+        "销量最高的产品是什么？卖了多少个？",
+        "2026年3月的订单总金额是多少？",
+        "所有订单的总金额是多少？",
+    ]
+    
+    for q in test_questions:
+        print(f"\n{'='*50}")
+        print(f"❓ 用户问题：{q}")
+        answer = text2sql_qa(q, db, llm)
+        print(f"💬 AI 回答：{answer}")
