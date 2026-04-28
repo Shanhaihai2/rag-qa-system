@@ -8,5 +8,5 @@ __pycache__/
 .vscode/
 models/
 chroma_db/
-rag-qa-frontend/node_modules/
+
 *.pdf
