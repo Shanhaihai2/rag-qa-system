@@ -142,6 +142,20 @@ graph.add_edge("handle_error", END)
 # 编译
 app = graph.compile()
 
+
+def smart_qa_invoke(question: str) -> dict:
+    """
+    封装智能问数工作流的调用，返回完整结果字典
+    """
+    result = app.invoke({
+        "question": question,
+        "sql": "",
+        "query_result": "",
+        "answer": "",
+        "error": ""
+    })
+    return result
+
 # 测试
 if __name__ == "__main__":
     test_questions = [
@@ -151,11 +165,5 @@ if __name__ == "__main__":
     ]
     
     for q in test_questions:
-        print(f"\n{'='*60}")
-        result = app.invoke({"question": q, "sql": "", "query_result": "", "answer": "", "error": ""})
-        print(f"❓ 问题：{result['question']}")
-        print(f"🎯 意图：{result['intent']}")
-        if result.get("sql"):
-            print(f"📝 SQL：{result['sql']}")
-            print(f"📊 结果：{result['query_result']}")
-        print(f"💬 回答：{result['answer']}")
+        result = smart_qa_invoke(q)
+        print(result["answer"])

@@ -9,6 +9,8 @@ import logging
 
 from rag import rag_chain # 确保 rag.py 在项目根目录
 
+from smart_qa import smart_qa_invoke
+
 # 文档模型（响应时返回）
 class DocumentResponse(BaseModel):
     id: int
@@ -241,4 +243,25 @@ async def rag_qa(request: QuestionRequest):
         return {"question": request.question, "answer": answer}
     except Exception as e:
         logger.error(f"RAG 问答失败：{e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+class Text2SQLRequest(BaseModel):
+    question: str = Field(..., description="用户用自然语言提出的问题", min_length=1)
+
+@app.post("/text2sql")
+async def text2sql_qa(request: Text2SQLRequest):
+    """
+    智能问数接口：根据自然语言问题自动生成 SQL、查询数据库并返回分析结果
+    """
+    try:
+        result = smart_qa_invoke(request.question)
+        return {
+            "question": result["question"],
+            "intent": result["intent"],
+            "sql": result.get("sql", ""),
+            "query_result": result.get("query_result", ""),
+            "answer": result["answer"]
+        }
+    except Exception as e:
+        logger.error(f"Text2SQL 问答失败：{e}")
         raise HTTPException(status_code=500, detail=str(e))

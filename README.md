@@ -111,8 +111,8 @@ uvicorn api:app --reload
 - [x] 异常处理与日志
 - [x] 接入 LangChain RAG
 - [x] RAG 优化与对比实验
-- [ ] 接入 Text2SQL
-- [ ] LangGraph 工作流
+- [x] 接入 Text2SQL
+- [x] LangGraph 工作流
 - [ ] Vue 3 前端界面
 
 ## 📄 许可证
