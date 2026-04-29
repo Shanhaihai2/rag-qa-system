@@ -265,3 +265,28 @@ async def text2sql_qa(request: Text2SQLRequest):
     except Exception as e:
         logger.error(f"Text2SQL 问答失败：{e}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+from fastapi import UploadFile, File
+import shutil
+import os
+from rag import process_pdf
+
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    # 1. 定义保存路径
+    UPLOAD_DIR = "./data"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+
+    # 2. 将上传的文件保存到服务器
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 3. 调用 RAG 处理流程，重建或更新向量库
+    try:
+        # 假设 process_pdf 返回处理后的块数
+        chunk_count = process_pdf(file_path)
+        return {"message": f"文件 {file.filename} 上传并处理成功，已生成 {chunk_count} 个文本块。"}
+    except Exception as e:
+        logger.error(f"处理PDF失败: {e}")
+        raise HTTPException(status_code=500, detail=f"文件处理失败: {e}")

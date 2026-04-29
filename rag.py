@@ -77,31 +77,31 @@ chunks = text_splitter.split_documents(documents)
 
 # 假设 chunks 是第 17 天生成的分块列表
 # 为前 3 个块生成向量（如果块数不足 3，则取全部）
-sample_chunks = chunks[:3]
-sample_texts = [chunk.page_content for chunk in sample_chunks]
+# sample_chunks = chunks[:3]
+# sample_texts = [chunk.page_content for chunk in sample_chunks]
 
-# 生成向量
-vectors = embeddings.embed_documents(sample_texts)
+# # 生成向量
+# vectors = embeddings.embed_documents(sample_texts)
 
 # print(f"\n✅ 已为 {len(vectors)} 个文本块生成向量。")
 # print(f"每个向量的维度：{len(vectors[0])}")  # BGE-small 是 512 维
 # print(f"第一个向量的前 5 个值：{vectors[0][:5]}")
 
-def cosine_similarity(vec1, vec2):
-    """计算两个向量的余弦相似度"""
-    vec1 = np.array(vec1)
-    vec2 = np.array(vec2)
-    return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+# def cosine_similarity(vec1, vec2):
+#     """计算两个向量的余弦相似度"""
+#     vec1 = np.array(vec1)
+#     vec2 = np.array(vec2)
+#     return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
-#测试三组句子
-sentences = [
-    "苹果是一种很好吃的水果",
-    "香蕉的味道也不错",
-    "今天天气下雨不适合出去玩"
-]
+# #测试三组句子
+# sentences = [
+#     "苹果是一种很好吃的水果",
+#     "香蕉的味道也不错",
+#     "今天天气下雨不适合出去玩"
+# ]
 
-#生成向量
-vecs = embeddings.embed_documents(sentences)
+# #生成向量
+# vecs = embeddings.embed_documents(sentences)
 
 # print("\n" + "="*50)
 # print("语义相似度测试：")
@@ -248,6 +248,20 @@ def test_model(model_name, question):
     )
     
     return chain.invoke(question)
+
+def process_pdf(file_path):
+    loader = PyPDFLoader(file_path)
+    documents = loader.load()
+    if not documents:
+        raise ValueError("PDF文件为空或无法解析!")
+    chunks = text_splitter.split_documents(documents)
+    vectordb = Chroma.from_documents(
+    documents=chunks,               # 第17天生成的文本块列表
+    embedding=embeddings,           # 第18天初始化好的 Embedding 模型
+    persist_directory=persist_directory
+    )
+    return len(chunks)
+
 # # 对比测试
 # test_q = "原神里面目前最厉害的是谁？"
 # print("===== 1.5B 回答 =====")
