@@ -1,19 +1,18 @@
-# 智能知识库问答系统 (RAG-QA-System)
-基于 **RAG（检索增强生成）** 的本地知识库问答系统。上传 PDF 文档后，系统自动进行文本提取、语义向量化，并支持基于文档内容的自然语言问答。**全程本地运行，无需 API Key，数据安全可控。**
+# 智能知识库问答系统 - 后端
+基于 FastAPI + LangChain + Ollama 的本地 RAG + Text2SQL 智能问答后端。
 
 ### 克隆项目
 git clone https://github.com/shanhaihai2/rag-qa-system.git
 cd rag-qa-system
 
 ## ✨ 核心功能
-- 📄 支持 PDF 文档上传与自动解析
-- 🧩 智能文本分块，保持语义完整性
-- 🔢 本地 Embedding 模型，免费且隐私安全
-- 🗄️ Chroma 向量数据库，持久化存储与快速检索
-- 🦙 Ollama 本地大模型（Qwen2.5），无需联网
-- 🚀 FastAPI 提供 RESTful API，自动生成 Swagger 文档
-- 🔍 支持相似度检索、MMR 等检索策略
-- 📊 完成分块策略对比优化实验
+- 📄 PDF 文档加载与智能分块
+- 🔢 本地 BGE Embedding 向量化（免费，无需 API Key）
+- 🗄️ Chroma 向量数据库存储与语义检索
+- 🦙 Ollama + Qwen2.5 本地大模型生成回答
+- 📊 Text2SQL 自然语言查询数据库
+- 🔀 LangGraph 智能问数工作流
+- 🚀 FastAPI RESTful API，自动生成 Swagger 文档
 
 ## 📁 项目结构
 rag-qa-system/
@@ -33,11 +32,10 @@ rag-qa-system/
 | :--- | :--- |
 | 后端框架 | FastAPI + Uvicorn |
 | AI 框架 | LangChain + LCEL |
-| 大语言模型 | Ollama + Qwen2.5 (1.5B) |
-| Embedding | BAAI/bge-small-zh-v1.5（HuggingFace） |
+| 大语言模型 | Ollama + Qwen2.5 (1.5B/7B) |
+| Embedding | BAAI/bge-small-zh-v1.5 |
 | 向量数据库 | Chroma |
-| 文档处理 | PyPDFLoader / PDFPlumberLoader |
-| 前端（规划中） | Vue 3 + UniApp |
+| 工作流编排 | LangGraph |
 
 ## 🏗️ 系统架构
 
