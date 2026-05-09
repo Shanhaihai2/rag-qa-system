@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI,Depends,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -6,10 +8,15 @@ from datetime import datetime
 from fastapi import Request
 from fastapi.responses import JSONResponse
 import logging
+from models.response import ApiResponse
 
 from rag import rag_chain # 确保 rag.py 在项目根目录
 
 from smart_qa import smart_qa_invoke
+
+DB_PATH = os.getenv("DB_PATH", "./data/ecommerce.db")
+CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_db")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
 
 # 文档模型（响应时返回）
 class DocumentResponse(BaseModel):
@@ -38,22 +45,24 @@ logger = logging.getLogger(__name__)  # 获取当前模块的日志记录器
 # 创建一个 FastAPI 应用实例
 app = FastAPI(title="智能问数与知识库平台API", version="0.1.0")
 
-# 自定义处理器：捕获 ValueError
-@app.exception_handler(ValueError)
-async def value_error_handler(request: Request, exc: ValueError):
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
     return JSONResponse(
-        status_code=400,
-        content={"message": f"参数值无效：{str(exc)}"}
+        status_code=exc.status_code,
+        content=ApiResponse.error(
+            code=exc.status_code,
+            msg=str(exc.detail)
+        ).dict()
     )
-
-# 自定义处理器：覆盖默认的 500 错误
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    # 可以在这里记录日志
-    print(f"全局异常捕获：{type(exc).__name__}: {exc}")
+async def global_exception_handler(request, exc):
+    logger.error(f"未捕获异常：{type(exc).__name__}: {exc}")
     return JSONResponse(
         status_code=500,
-        content={"message": "服务器内部错误，请稍后重试"}
+        content=ApiResponse.error(
+            code=500,
+            msg="服务器内部错误，请稍后重试"
+        ).dict()
     )
 
 #会抛出ValueError的接口
@@ -135,7 +144,7 @@ def get_current_time():
 # 定义一个 GET 接口，路径为根路径 "/"
 @app.get("/")
 def read_root():
-    return {"message": "Hello, FastAPI!我的第一个接口跑起来了。"}
+    return ApiResponse.ok(data={"message": "Hello, FastAPI!我的第一个接口跑起来了。"})
 
 # @app.get("/documents/{doc_id}")
 # def get_document(doc_id: int):
@@ -156,10 +165,10 @@ def get_server_status(current_time: str = Depends(get_current_time)):
     获取服务器状态（演示依赖注入）
     """
     logger.info(f"有人访问了 /status 接口")  # INFO 级别
-    return {
+    return ApiResponse.ok(data={
         "status": "running",
         "server_time": current_time
-    }
+    })
 
 @app.get("/documents-db")
 def list_documents_from_db(db: DBSession = Depends(get_db)):
@@ -167,7 +176,7 @@ def list_documents_from_db(db: DBSession = Depends(get_db)):
     通过注入的数据库会话查询文档列表（模拟）
     """
     result = db.query("SELECT * FROM documents")
-    return {"db_connected": db.connected, "result": result}
+    return ApiResponse.ok(data={"db_connected": db.connected, "result": result})
 
 @app.post("/qa")
 def ask_question(request: QuestionRequest, db: DBSession = Depends(get_db)):
@@ -182,13 +191,13 @@ def ask_question(request: QuestionRequest, db: DBSession = Depends(get_db)):
     # 模拟生成答案
     answer = f"关于「{request.question}」，知识库中有以下相关文档：{', '.join(related_docs) if related_docs else '暂无'}。这是一个模拟回答，后续将接入大模型。"
     
-    return {
+    return ApiResponse.ok(data={
         "question": request.question,
         "answer": answer,
         "related_documents": related_docs,
         "max_tokens": request.max_tokens,
         "temperature": request.temperature
-    }
+    })
 """
 Text2SQL嵌套模型
 @app.post("/text2sql")
@@ -218,7 +227,7 @@ def create_document(doc_in: DocumentCreate, db: DBSession = Depends(get_db)):
     # 模拟数据库插入日志
     db.query(f"INSERT INTO documents (title, content) VALUES ('{doc_in.title}', ...)")
     
-    return new_doc
+    return ApiResponse.ok(data=new_doc,msg="文档创建成功")
 
 @app.get("/documents/{doc_id}", response_model=DocumentResponse)
 def get_document(doc_id: int, db: DBSession = Depends(get_db)):
@@ -240,7 +249,7 @@ async def rag_qa(request: QuestionRequest):
     """
     try:
         answer = rag_chain.invoke(request.question)
-        return {"question": request.question, "answer": answer}
+        return ApiResponse.ok(data={"question": request.question, "answer": answer})
     except Exception as e:
         logger.error(f"RAG 问答失败：{e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -255,13 +264,13 @@ async def text2sql_qa(request: Text2SQLRequest):
     """
     try:
         result = smart_qa_invoke(request.question)
-        return {
+        return ApiResponse.ok(data={
             "question": result["question"],
             "intent": result["intent"],
             "sql": result.get("sql", ""),
             "query_result": result.get("query_result", ""),
             "answer": result["answer"]
-        }
+        })
     except Exception as e:
         logger.error(f"Text2SQL 问答失败：{e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -286,7 +295,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     try:
         # 假设 process_pdf 返回处理后的块数
         chunk_count = process_pdf(file_path)
-        return {"message": f"文件 {file.filename} 上传并处理成功，已生成 {chunk_count} 个文本块。"}
+        return ApiResponse.ok(data={"message": f"文件 {file.filename} 上传并处理成功，已生成 {chunk_count} 个文本块。"})
     except Exception as e:
         logger.error(f"处理PDF失败: {e}")
         raise HTTPException(status_code=500, detail=f"文件处理失败: {e}")
