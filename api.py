@@ -9,7 +9,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 import logging
 from models.response import ApiResponse
-
+import os
 from rag import rag_chain # 确保 rag.py 在项目根目录
 
 from smart_qa import smart_qa_invoke
@@ -52,7 +52,7 @@ async def http_exception_handler(request, exc):
         content=ApiResponse.error(
             code=exc.status_code,
             msg=str(exc.detail)
-        ).dict()
+        ).model_dump() 
     )
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
@@ -62,7 +62,7 @@ async def global_exception_handler(request, exc):
         content=ApiResponse.error(
             code=500,
             msg="服务器内部错误，请稍后重试"
-        ).dict()
+        ).model_dump() 
     )
 
 #会抛出ValueError的接口
