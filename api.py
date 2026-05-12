@@ -11,7 +11,7 @@ import logging
 from models.response import ApiResponse
 import os
 from rag import rag_chain # 确保 rag.py 在项目根目录
-
+from utils.auth import verify_token
 from smart_qa import smart_qa_invoke
 
 DB_PATH = os.getenv("DB_PATH", "./data/ecommerce.db")
@@ -207,7 +207,7 @@ def text_to_sql(request: Text2SQLRequest):
 """
 
 @app.post("/documents", response_model=DocumentResponse, status_code=201)
-def create_document(doc_in: DocumentCreate, db: DBSession = Depends(get_db)):
+def create_document(doc_in: DocumentCreate, db: DBSession = Depends(get_db),token: str = Depends(verify_token)):
     """
     上传新文档
     """
@@ -281,7 +281,7 @@ import os
 from rag import process_pdf
 
 @app.post("/upload-pdf")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(file: UploadFile = File(...),token: str = Depends(verify_token)):
     # 1. 定义保存路径
     UPLOAD_DIR = "./data"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
