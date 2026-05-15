@@ -4,6 +4,7 @@ from text2sql import get_sql_from_question
 # 导入 LLM 和数据库（从 text2sql.py 中复用）
 from langchain_ollama import ChatOllama
 from langchain_community.utilities import SQLDatabase
+from utils.sql_cleaner import validate_sql, execute_sql_with_retry
 
 llm = ChatOllama(model="qwen2.5:7b", temperature=0)
 DB_PATH = "./data/ecommerce.db"
@@ -60,10 +61,17 @@ def route_after_generate(state: QAState):
 
 # 节点4：执行 SQL
 def execute_sql(state: QAState):
+    if not validate_sql(state["sql"]):
+        state["error"] = "禁止执行高危SQL操作（DROP/DELETE/UPDATE等），仅支持查询"
+        return state
     """执行 SQL 并获取结果"""
     try:
-        result = db.run(state["sql"])
-        state["query_result"] = str(result) if result else "查询结果为空"
+        result, final_sql = execute_sql_with_retry(sql=state["sql"], question=state["question"],db=db,llm=llm, retries=2)
+        if result is None:
+            state["error"] = "SQL 执行失败，多次重试后仍无法完成查询"
+        else:
+            state["query_result"] = str(result) if result else "查询结果为空"
+            state["sql"] = final_sql  # 如果有修正，更新为最终执行的 SQL
     except Exception as e:
         state["error"] = f"SQL 执行失败：{e}"
         state["query_result"] = ""

@@ -10,7 +10,9 @@ from fastapi.responses import JSONResponse
 import logging
 from models.response import ApiResponse
 import os
-from rag import rag_chain # 确保 rag.py 在项目根目录
+from rag import get_reranked_docs, llm # 确保 rag.py 在项目根目录
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from utils.auth import verify_token
 from smart_qa import smart_qa_invoke
 
@@ -92,6 +94,7 @@ class QuestionRequest(BaseModel):
     question: str = Field(..., description="用户问题", min_length=1)# 必填，字符串类型
     max_tokens: int = Field(500, description="生成回答的最大 token 数", ge=1, le=2000)# 可选，默认 500
     temperature: float = Field(0.7, description="采样温度，控制随机性", ge=0.0, le=2.0)# 可选，默认 0.7
+    history: Optional[str] = Field("", description="多轮对话的历史记录，格式为'用户: xxx\nAI: xxx'")
 """
 Text2SQL嵌套模型
 class DatabaseConfig(BaseModel):
@@ -248,8 +251,59 @@ async def rag_qa(request: QuestionRequest):
     RAG 知识库问答接口
     """
     try:
-        answer = rag_chain.invoke(request.question)
-        return ApiResponse.ok(data={"question": request.question, "answer": answer})
+        # 1. 用你第3天优化好的函数来检索
+        docs = get_reranked_docs(request.question)
+        
+        # 2. 拼接上下文
+        context = "\n".join([doc.page_content for doc in docs])
+        
+        # 3. 根据是否有历史记录，选择不同的提示词模板
+        if request.history:
+            template = """你是一个专业的知识库问答助手。请根据以下对话历史和知识库上下文回答问题。
+            
+对话历史：
+{history}
+
+知识库上下文：
+{context}
+
+当前用户问题：{question}
+
+回答："""
+            prompt = ChatPromptTemplate.from_template(template)
+        # 把上下文和历史一起放进 prompt
+            chain = (
+                prompt
+                | llm
+                | StrOutputParser()
+                )
+            answer = chain.invoke({
+                "history": request.history,
+                "context": context,
+                "question": request.question
+            })
+            return ApiResponse.ok(data={"question": request.question, "answer": answer})
+        else:
+            # 没有历史时，用原始模板
+            template = """你是一个专业的知识库问答助手。请根据以下上下文信息回答问题。
+        上下文：
+         {context}
+
+        问题：
+        {question}
+
+         回答："""
+            prompt = ChatPromptTemplate.from_template(template)
+            chain = (
+                prompt
+                | llm
+                | StrOutputParser()
+            )
+            answer = chain.invoke({
+                "context": context,
+                "question": request.question
+            })
+            return ApiResponse.ok(data={"question": request.question, "answer": answer})
     except Exception as e:
         logger.error(f"RAG 问答失败：{e}")
         raise HTTPException(status_code=500, detail=str(e))
