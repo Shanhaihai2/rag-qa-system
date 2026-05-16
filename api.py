@@ -353,3 +353,25 @@ async def upload_pdf(file: UploadFile = File(...),token: str = Depends(verify_to
     except Exception as e:
         logger.error(f"处理PDF失败: {e}")
         raise HTTPException(status_code=500, detail=f"文件处理失败: {e}")
+    
+from agent import agent
+from langchain_core.messages import HumanMessage
+@app.post("/agent")
+async def agent_qa(request: QuestionRequest):
+    """
+    Agent 智能问答接口：自主判断意图、调用工具、整合回答
+    """
+    try:
+        # 新接口的调用方式：传入消息列表
+        result = agent.invoke({
+            "messages": [HumanMessage(content=request.question)]
+        })
+        # 从结果中提取最后一条AI消息作为最终回答
+        answer = result["messages"][-1].content
+        return ApiResponse.ok(data={
+            "question": request.question,
+            "answer": answer
+        })
+    except Exception as e:
+        logger.error(f"Agent 问答失败：{e}")
+        raise HTTPException(status_code=500, detail=str(e))
